@@ -5,10 +5,52 @@ from time import sleep, time
 
 
 class Find:
+    """Find Class is a search algorithm protocal for finding and connecting any items in a network.
+    
+    The parent Find Class requires one-dimensional representations of a network in order to maintain and keep track of the connections in the network. It uses parallel lists: one representing the members or items in the network, and the other represening the roots of the items. The class has four child classes: QuickUnion, WeightedQuickUnion, PathCompression, and QuickFind. 
+    
+    The default union method uses a quick union update of the root list, which sets the root of one item to the other. The default search method uses a find roots method, which is a recursive search to find a root. A root is defined as a number that has itself as the root. That is, any indexed number in the numbers list has a root in the root list. If the root of a number is not itself, then that number is connected to other numbers in the network that share the same root. This is based on a tree concept or path concept: all numbers in the network point to another number, or point to itself. A number belongs to a tree when you follow the path of the number until you reach a root, thus all of those numbers are connected in the network. Thus, full connection in the network occurs when all numbers point to a single root in the root list. 
+    
+    All child classes, with the exception of QuickFind, use this concept to demonstrate connection in a network. QuickFind uses a direct connection: any number in the tree is connected to a root with a direct connection of one base root. Thus, full connection in a network occurs when all numbers have just one root in the root list. 
+    ...
+    
+    Attributes
+    __________
+    size: int
+        the total number of members in a network
+    numbers: list of int
+        list of members in a network represented by an integer
+    roots: list of int
+        list of roots of members in a network represented by an integer
+        
+    Methods
+    _______
+    connected(a, b)
+        Returns Boolean. Shows if two items have the same root in the network and are already connected.
+    
+    connect(a, b)
+        Returns None. Connects two items in the network if they do not have the same root.
+        
+    union(p, q)
+        Returns None. Updates the roots of two items to connect them in a network.
+        
+    find(n)
+        Returns int. Finds the root of an item in a network and returns it.
+    
+    
+    """
     def __init__(self, size):
+        """Takes integer as arguement to create find search protocall. Size property must be greater than zero. 
+        
+        Parameters
+        __________
+        size: int
+            the number of members in a network
+        
+        """
         self.size = size
-        self.numbers = [num + 1 for num in range(self.size ** 2)]
-        self.roots = [num + 1 for num in range(self.size ** 2)]
+        self.numbers = [num + 1 for num in range(self._size ** 2)]
+        self.roots = [num + 1 for num in range(self._size ** 2)]
 
     @property
     def size(self):
@@ -21,101 +63,125 @@ class Find:
         self._size = value
 
     def connected(self, a, b):
-        """Connects two items using union if the roots are different. Returns boolean."""
+        """Checks if two items have the same roots. Takes two items from numbers list. Calls the find_root method. Returns boolean."""
+        return self.find_root(a) == self.find_root(b)
+        
+        
+    def connect(self, a, b):
+        """Connects two items if the roots are different and not already connected. Takes two litems from numbers list. Calls the union method."""
         p = self.find_root(a)
         q = self.find_root(b)
         if p != q:
-            # print("Connected")
             self.union(p, q)
-            return True
-        return False
 
-    # Default is QuickUnion algorithm setting the root of the first item to the second item
+    # Default is QuickUnion algorithm. Sets the root of the first item passed to the second item. This shows connections between two items.
     def union(self, p, q):
-        """Connects two items in the list by updating the root list."""
+        """Connects two items in the list. Takes two items from roots list. Updates the root list."""
         self.roots[p - 1] = q
 
+    # Default is QuickUnion algorithm. Recursively checks the root until the root equals the number itself.
     def find_root(self, n):
-        """Returns the root of an item from the root list when root of the item equals itself."""
+        """Returns the root of an item from the root list. Takes an item from the numbers list."""
         while self.roots[n - 1] != n:
             n = self.roots[n - 1]
         return n
 
 
 class QuickUnion(Find):
+    """Default child class of parent class Find. Other QuickUnion-related protocalls are built on this basic algorithmic data structure.
+    
+    Attributes and Methods
+    ______________________
+    See the parent class (union calls the parent method)
+    
+    
+    """
     def __init__(self, size):
         super().__init__(size)
-        # print(f"QuickUnion(size={size})")
+        print(f"QuickUnion(size={self._size})")
 
-    # Calls the the parent class union since the default Find object in the Board Class is QuickUnion
+    # Calls the the parent class union since the default Find Object uses QuickUnion methods for union() and find_root() 
     def union(self, p, q):
         super().union(p, q)
-
-
-class PathCompression(Find):
+        
+class WeightedQuickUnion(Find):
+    """Child class of parent class Find. Based on QuickUnion except uses a weighted tree decision strategy to call the union method.
+    
+    Attributes
+    __________
+    tree size: list of int
+        list of tree size of members in a network represented by an integer
+        
+    Methods
+    _______
+    union(p, q)
+        Returns None. Updates the roots of two items based on tree size and connects them in a network.
+    
+    """
     def __init__(self, size):
         super().__init__(size)
         self.tree_size = [1 for _ in range(self._size ** 2)]
+        print(f"WeightedQuickUnion(size={self._size})")
 
-    def connected(self, a, b):
+    def union(self, p, q):
+        """Connects two items in the list based the size of the tree or path that the item belongs to. Takes two items from roots list. Updates the root list."""
+        if self.tree_size[p - 1] < self.tree_size[q - 1]:
+            super().union(p, q)
+            self.tree_size[q - 1] += self.tree_size[p - 1]
+        else:
+            super().union(q, p)
+            self.tree_size[p - 1] += self.tree_size[q - 1]
+
+class PathCompression(WeightedQuickUnion):
+    """Child class of WeightedQuickUnion class. Based on WeightedQuickUnion except uses path compression to flatten the size of trees when finding the root.
+    
+    Attributes
+    __________
+    tree size: list of int
+        list of tree size of members in a network represented by an integer
+        
+    Methods
+    _______
+    union(p, q)
+        Returns None. Updates the roots of two items based on tree size and connects them in a network.
+    
+    """
+    def __init__(self, size):
+        super().__init__(size)
+        print("PathCompression(WeightedQuickUnion)")
+
+#     def find_root(self, n):
+#         """Returns the root of an item from the root list when root of the item equals itself."""
+#         initial_num = n
+# #         while self.roots[n - 1] != n:
+# #             n = self.roots[n - 1]
+#         root = super().find_root(n)
+#         self.path_compression(initial_num, root)
+        
+#         return root
+    
+    def connect(self, a, b):
         """Connects two items using union if the roots are different. Returns boolean."""
         p = self.find_root(a)
         q = self.find_root(b)
         if p != q:
-            # print("Connected")
-            # self.path_compression(a, p)
-            # self.path_compression(b, q)
+            self.path_compression(a, p)
+            self.path_compression(b, q)
             self.union(p, q)
-            return True
-        return False
-
-    def find_root(self, n):
-        root = super().find_root(n)
-        # while self.roots[n - 1] != root:
-        #     node = n
-        #     n = self.roots[n - 1]
-        #     self.roots[node - 1] = root
-        self.path_compression(n, root)
-        return root
 
     def path_compression(self, initial_num, root):
         while self.roots[initial_num - 1] != root:
             node = initial_num
             initial_num = self.roots[initial_num - 1]
             self.roots[node - 1] = root
-        # return root
-
-    def union(self, p, q):
-        if self.tree_size[p - 1] < self.tree_size[q - 1]:
-            super().union(p, q)
-            self.tree_size[q - 1] += self.tree_size[p - 1]
-        else:
-            super().union(q, p)
-            self.tree_size[p - 1] += self.tree_size[q - 1]
-
-
-class WeightedQuickUnion(Find):
-    def __init__(self, size):
-        super().__init__(size)
-        self.tree_size = [1 for _ in range(self._size ** 2)]
-
-    def union(self, p, q):
-        if self.tree_size[p - 1] < self.tree_size[q - 1]:
-            super().union(p, q)
-            self.tree_size[q - 1] += self.tree_size[p - 1]
-        else:
-            super().union(q, p)
-            self.tree_size[p - 1] += self.tree_size[q - 1]
 
 
 class QuickFind(Find):
     def __init__(self, size):
         super().__init__(size)
-        # print(f"QuickFind(size={size})")
+        print(f"QuickFind(size={self._size})")
 
     def find_root(self, n):
-        # print(self.numbers)
-        # print(self.roots)
         return self.roots[n - 1]
 
     def union(self, p, q):
@@ -126,12 +192,11 @@ class QuickFind(Find):
 
 
 class Board:
-    open_sites = 0
 
     def __init__(self, size, find='QuickFind'):
-        self.size = int(size)
+        self.size = int(size) # size validation is done in the Find Class
         self.find = find
-
+        
         if self._find == 'QuickUnion':
             self.finder = QuickUnion(self.size)
         elif self._find == 'WeightedQuickUnion':
@@ -140,16 +205,18 @@ class Board:
             self.finder = PathCompression(self.size)
         else:
             self.finder = QuickFind(self.size)
-
-        self.space = self.size ** 2
+        
+        self.open_sites = 0
+        self.space = self.size ** 2 # space is the total number of elements on the board
         self.board = [0 for _ in range(self.space)]
-
+        
     @property
     def find(self):
         return self._find
 
     @find.setter
     def find(self, value):
+        """Setter function guarentees vaild Find Object was passed to the Board Class object."""
         if value not in ('QuickUnion', 'WeightedQuickUnion', 'QuickFind', 'PathCompression'):
             raise ValueError("Find kernel must be one of 'QuickUnion', 'WeightedQuickUnion', 'PathCompression' "
                              "or 'QuickFind'")
@@ -161,8 +228,8 @@ class Board:
         return self.board[n - 1] == 1
 
     def open_gate(self, a, b):
-        """Opens the gate if the current position is not open, updates the number or open positions, and calls
-        the connect method to join the current position to the adjacent squares. Returns boolean
+        """Opens the gate if the current position is not open, updates the number of open positions, and calls
+        the private connect method to join the current position to the adjacent squares. Returns boolean.
         """
         position = self.__position(a, b)
         if not self.is_open(position):
@@ -177,7 +244,7 @@ class Board:
         return (a - 1) * self.size + b
 
     def __connect(self, a, b, position):
-        """Connects the currently played position to the adjacent four squares using a Find method."""
+        """Connects the currently played position to the adjacent four squares using a finder object from Find class."""
         above = position - self.size
         below = position + self.size
         left = position - 1
@@ -185,19 +252,19 @@ class Board:
 
         if a != 1:
             if self.is_open(above):
-                self.finder.connected(position, above)
+                self.finder.connect(position, above)
 
         if a != self.size:
             if self.is_open(below):
-                self.finder.connected(position, below)
+                self.finder.connect(position, below)
 
         if b != 1:
             if self.is_open(left):
-                self.finder.connected(position, left)
+                self.finder.connect(position, left)
 
         if b != self.size:
             if self.is_open(right):
-                self.finder.connected(position, right)
+                self.finder.connect(position, right)
 
     def number_of_open_sites(self):
         """Returns the number of open positions on the game board."""
@@ -206,17 +273,48 @@ class Board:
     def is_full(self, n):
         """Checks full position by comparing the root of the position to all roots in the first row. Returns boolean."""
         if self.is_open(n):
+            root_of_position = self.finder.find_root(n)
             for i in range(self.size):
-                if self.finder.find_root(n) == self.finder.find_root(i + 1):
+                if root_of_position == self.finder.find_root(i + 1):
                     return True
         return False
 
     def percolates(self):
         """Checks to see if percolation has occurred. Returns boolean."""
+#         top_row = set()
+#         bottom_row = set()
+
+#         for i in range(self.size):
+#             root = self.finder.find_root(i + 1)
+# #             print(root)
+#             top_row.add(root)
+#         for i in range(self.space - self.size, self.space):
+#             root = self.finder.find_root(i + 1)
+# #             print(root)
+#             bottom_row.add(root)
+
+#         common_roots = top_row.intersection(bottom_row)
+
+#         if len(common_roots) != 0:
+#             print(top_row)
+#             print(bottom_row)
+#             return True
+#         return False
+        
+        top_row_roots = [self.finder.find_root(i) if self.is_open(i) else 0 for i in range(self.size)]
+#         top_row_roots = [self.finder.find_root(i) if self.is_open(i) else 0 for i in range(self.size)]
+#         print(top_row_roots)
         for n in range(self.space - self.size, self.space):
-            if self.is_full(n + 1):
-                return True
+            if self.finder.is_open(n):
+                current_root = self.finder.find_root(n)
+                if current_root in top_row_roots:
+                    return True
         return False
+    
+#         for n in range(self.space - self.size, self.space):
+#             if self.is_full(n + 1):
+#                 return True
+#         return False
 
     def show_board(self):
         """Prints a quick 2-D representation of the 1-D game board."""
@@ -353,7 +451,7 @@ class Game:
             _ = system('clear')
 
     def enter_position(self):
-        """Returns a board postition in the NxN matrix from input by the user"""
+        """Returns a board position in the NxN matrix from input by the user"""
         a = b = 0
         while True:
             try:
@@ -473,7 +571,7 @@ class MonteCarlo:
         self.size = size
         self.iterations = iterations
 
-    # Test Method 1 performs much slower than Method 2 because it uses randomized points and has repetition
+    # Test Method 1 performs much slower than Method 2 because it uses two randomized points, so points in the network will repeat
     @elapsed_time
     def test_1(self, find):
         percolation_list = []
@@ -526,14 +624,19 @@ class MonteCarlo:
                 a, b = self.positions(position)
                 board.open_gate(a, b)
                 if board.percolates():
+                    print(a, b)
                     break
             percolation_list.append(round(board.open_sites / board.space, 4))
+#             board.show_roots()
+#             v = Visualizer(board, "Circle")
+#             v.print_board(v.p_board())
 
         average = sum(percolation_list) / len(percolation_list) * 100
         print(f"Percolation Threshold Average: {(round(average, 4))}%")
         print(f"Board Size: {self.size}")
         print(f"Iterations: {self.iterations}")
         print(f"Algorithm: {find}")
+        
 
     @elapsed_time
     def monte_carlo_full_connection_test(self, find, seed_value):
@@ -556,26 +659,26 @@ class MonteCarlo:
             # print(board.show_board())
         # end = time()
         # print(board.show_board())
-        # print(board.show_roots())
+#         print(board.show_roots())
         print(f"Board Size: {self.size}")
         print(f"Iterations: {self.iterations}")
         print(f"Algorithm: {find}")
 
 
 def main():
-    # mc = MonteCarlo(16, 100)
+#     mc = MonteCarlo(16, 100)
     # mc.monte_carlo_percolation_test('QuickFind')
     # print()
     # mc.test_1('QuickFind')
     # print()
-    # mc = MonteCarlo(16, 1000)
-    # mc.monte_carlo_percolation_test('QuickUnion', randomized=False, seed_value=42)
-    # print()
-    # mc.monte_carlo_percolation_test('WeightedQuickUnion', randomized=False, seed_value=42)
-    # print()
-    # mc.monte_carlo_percolation_test('QuickFind', randomized=False, seed_value=42)
-    # print()
-    # mc.monte_carlo_percolation_test('PathCompression', randomized=False, seed_value=42)
+#     mc = MonteCarlo(3, 1)
+#     mc.monte_carlo_percolation_test('QuickUnion', randomized=False, seed_value=42)
+#     print()
+#     mc.monte_carlo_percolation_test('WeightedQuickUnion', randomized=False, seed_value=42)
+#     print()
+#     mc.monte_carlo_percolation_test('QuickFind', randomized=False, seed_value=42)
+#     print()
+#     mc.monte_carlo_percolation_test('PathCompression', randomized=False, seed_value=42)
     # print()
     #
     # mc = MonteCarlo(10, 1)
@@ -588,15 +691,20 @@ def main():
     # mc.monte_carlo_percolation_test('PathCompression')
     # print()
 
-    mc = MonteCarlo(250, 1)
-    mc.monte_carlo_full_connection_test('QuickUnion', seed_value=42)
+    mc = MonteCarlo(50, 1000)
+#     mc.monte_carlo_full_connection_test('QuickUnion', seed_value=42)
+#     print()
+    mc.monte_carlo_full_connection_test('PathCompression', seed_value=42)
     print()
     mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=42)
     print()
-    mc.monte_carlo_full_connection_test('QuickFind', seed_value=42)
-    print()
-    mc.monte_carlo_full_connection_test('PathCompression', seed_value=42)
-    print()
+#     mc.monte_carlo_full_connection_test('PathCompression', seed_value=4)
+#     print()
+#     mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=4)
+#     print()
+#     mc.monte_carlo_full_connection_test('QuickFind', seed_value=42)
+#     print()
+
 
     # @elapsed_time
     # def monte_carlo_test_1(size, trials):
