@@ -98,12 +98,14 @@ class Find:
 
     def connected(self, a, b):
         """Checks if two items from numbers list have the same roots. Calls the find_root method. Returns boolean."""
-        return self.find_root(a) == self.find_root(b)
+        root = self.find_root
+        return root(a) == root(b)
 
     def connect(self, a, b):
         """Connects two items from numbers list if the roots are different. Calls the union method. Returns none."""
-        p = self.find_root(a)
-        q = self.find_root(b)
+        root = self.find_root
+        p = root(a)
+        q = root(b)
         if p != q:
             self.union(p, q)
 
@@ -185,13 +187,14 @@ class PathCompression(WeightedQuickUnion):
 
     def connect(self, a, b):
         """Connects two items if the roots are different. Calls path compression before union call. Returns none."""
-        p = self.find_root(a)
-        q = self.find_root(b)
-        # self.path_compression(a, p)
-        # self.path_compression(b, q)
+        root = self.find_root
+        p = root(a)
+        q = root(b)
+
         if p != q:
-            self.path_compression(a, p)
-            self.path_compression(b, q)
+            compress = self.path_compression
+            compress(a, p)
+            compress(b, q)
             self.union(p, q)
 
     def path_compression(self, initial_num, root):
@@ -272,32 +275,14 @@ class Board:
     is_full(n)
         Returns bool. Checks if the position is full. A full position is defined as a position on the board that is
         connected to an open position in the top row of the board. Full positions can only flow down once a position in
-        the first row has been opened, and any subsequent connected positions are also full.
+        the first row has been opened, and any subsequent connected positions are also considered full.
     percolates()
         Returns bool. Checks if the board has percolated. Percolation is defined as a path of full positions starting
-        from top to the bottom. Makes a set of roots for the top and bottom rows. If the two sets have a common element,
-        then percolation has occurred.
+        from top to the bottom. Makes two sets of roots for the top and bottom rows. If the two sets have a common
+        element, then percolation has occurred.
     """
-
-    def percolates(self):
-        """Checks to see if percolation has occurred. Returns boolean."""
-        top_row = set()
-        bottom_row = set()
-
-        for i in range(self.size):
-            top_row.add(self.finder.find_root(i + 1))
-        for i in range(self.space - self.size, self.space):
-            bottom_row.add(self.finder.find_root(i + 1))
-
-        common_roots = top_row.intersection(bottom_row)
-
-        if len(common_roots) != 0:
-            return True
-
-        return False
-
     def __init__(self, size, find='QuickFind'):
-        self.size = int(size)  # size validation is done in the Find Class
+        self.size = int(size)  # size validation is done in the Find Class- this will also validate the space property
         self.find = find
 
         if self._find == 'QuickFind':
@@ -312,6 +297,23 @@ class Board:
         self.space = self.size ** 2  # space is the total number of elements on the board
         self.board = [0 for _ in range(self.space)]
         self.open_sites = 0
+
+    # Validation of properties are done ih the Find Class- decorators indicate values should not be changed manually
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = value
+
+    @property
+    def space(self):
+        return self._space
+
+    @space.setter
+    def space(self, value):
+        self._space = value
 
     @property
     def find(self):
@@ -331,9 +333,7 @@ class Board:
         return self.board[n - 1] == 1
 
     def open_gate(self, a, b):
-        """Opens the gate if the current position is not open, updates the number of open positions, and calls
-        the private connect method to join the current position to the adjacent squares. Returns boolean.
-        """
+        """Updates board and number of open sites. Connects position to any open adjacent positions. Returns boolean."""
         position = self.__position(a, b)
         if not self.is_open(position):
             self.board[position - 1] = 1
@@ -352,53 +352,55 @@ class Board:
         below = position + self.size
         left = position - 1
         right = position + 1
-
+        connector = self.finder.connect
         if a != 1:
             if self.is_open(above):
-                self.finder.connect(position, above)
+                connector(position, above)
 
         if a != self.size:
             if self.is_open(below):
-                self.finder.connect(position, below)
+                connector(position, below)
 
         if b != 1:
             if self.is_open(left):
-                self.finder.connect(position, left)
+                connector(position, left)
 
         if b != self.size:
             if self.is_open(right):
-                self.finder.connect(position, right)
+                connector(position, right)
 
     def number_of_open_sites(self):
-        """Returns the number of open positions on the game board."""
+        """Returns the number of open positions or sites on the game board."""
         return self.open_sites
 
     def is_full(self, n):
-        """Checks full position by comparing the root of the position to all roots in the first row. Returns boolean."""
+        """Checks if the current position is full. Returns boolean."""
         if self.is_open(n):
             root_of_position = self.finder.find_root(n)
+            top_row_root = self.finder.find_root
             for i in range(self.size):
-                if root_of_position == self.finder.find_root(i + 1):
+                if root_of_position == top_row_root(i + 1):
                     return True
         return False
 
     def percolates(self):
-        """Checks to see if percolation has occurred. Returns boolean."""
-        top_row = set()
-        bottom_row = set()
-
-        for i in range(self.size):
-            top_row.add(self.finder.find_root(i + 1))
-        for i in range(self.space - self.size, self.space):
-            bottom_row.add(self.finder.find_root(i + 1))
+        """Checks if percolation has occurred. Returns boolean."""
+        # top_row = set()
+        # bottom_row = set()
+        root = self.finder.find_root
+        top_row = {root(i + 1) for i in range(self.size)}
+        bottom_row = {root(i + 1) for i in range(self.space - self.size, self.space)}
+        # for i in range(self.size):
+        #     top_row.add(self.finder.find_root(i + 1))
+        # for i in range(self.space - self.size, self.space):
+        #     bottom_row.add(self.finder.find_root(i + 1))
 
         common_roots = top_row.intersection(bottom_row)
 
-        if len(common_roots) != 0:
+        if common_roots:  # if common_roots contains any element, it will evaluate to True
             return True
 
         return False
-
     # Alternative percolation algo -> not as efficient as the one above
     #         for n in range(self.space - self.size, self.space):
     #             if self.is_full(n + 1):
@@ -452,7 +454,7 @@ class Visualizer:
                 mark = '0.'
             elif self.marker == 'Circle':
                 mark = '\u25CF'
-            else:
+            else:  # Default marker is a square
                 mark = '\u25A0'
 
             if self.board.is_full(position + 1):
@@ -487,8 +489,20 @@ class Game:
         self.auto = auto
         self.speed = speed
         self.marker = marker
-        self.board = Board(size, find)
-        self.visualize = Visualizer(self.board, self.marker)
+        self.board = Board(size, find)  # find argument validated in the Board Class
+        self.visualizer = Visualizer(self.board, self.marker)
+
+    @property
+    def speed(self):
+        return self._speed
+
+    @speed.setter
+    def speed(self, value):
+        """Setter function guarantees valid speed was passed to the Game Class object."""
+        if value not in ('Fast', 'Slow', 'Express', 'Inf'):
+            raise ValueError("Invalid string argument was passed to constructor.")
+        else:
+            self._speed = value
 
     def play_game(self):
         """Takes a N x N matrix board and randomizes open spaces on the game board. Game will quit once percolation
@@ -512,12 +526,12 @@ class Game:
                 sleep(0.05)
                 continue
 
-            formatted_board = self.visualize.p_board()
+            formatted_board = self.visualizer.p_board()
             if self.auto:
                 Game.clear()
             print('\n')
             print(f"The new numbers are {a} and {b}.")
-            self.visualize.print_board(formatted_board)
+            self.visualizer.print_board(formatted_board)
             if self.auto:
                 if self.speed == 'Fast':
                     sleep(0.25)
@@ -535,7 +549,7 @@ class Game:
                 print(f"The Game is over and percolation occurred at {round(threshold * 100, 2)}%")
                 break
 
-            # extra protection to make sure the game quits
+            # extra protection to make sure the game quits and for debugging/testing
             if self.board.number_of_open_sites() == self.board.space:
                 done = True
 
@@ -723,7 +737,7 @@ class MonteCarlo:
                     print(a, b)
                     break
             percolation_list.append(round(board.open_sites / board.space, 4))
-            board.show_roots()
+            # board.show_roots()
         #             v = Visualizer(board, "Circle")
         #             v.print_board(v.p_board())
 
@@ -767,26 +781,25 @@ def main():
     # print()
     # mc.test_1('QuickFind')
     # print()
-    mc = MonteCarlo(4, 1)
+    mc = MonteCarlo(175, 1)
     mc.monte_carlo_percolation_test('QuickUnion', randomized=False, seed_value=42)
     print()
     mc.monte_carlo_percolation_test('WeightedQuickUnion', randomized=False, seed_value=42)
     print()
-    mc.monte_carlo_percolation_test('QuickFind', randomized=False, seed_value=42)
-    print()
+    # mc.monte_carlo_percolation_test('QuickFind', randomized=False, seed_value=42)
+    # print()
     mc.monte_carlo_percolation_test('PathCompression', randomized=False, seed_value=42)
     print()
 
-
-#     mc = MonteCarlo(10, 1)
-#     mc.monte_carlo_percolation_test('QuickUnion')
-#     print()
-#     mc.monte_carlo_percolation_test('WeightedQuickUnion')
-#     print()
-#     mc.monte_carlo_percolation_test('QuickFind')
-#     print()
-#     mc.monte_carlo_percolation_test('PathCompression')
-#     print()
+    # mc = MonteCarlo(141, 1)
+    # mc.monte_carlo_percolation_test('QuickUnion')
+    # print()
+    # mc.monte_carlo_percolation_test('WeightedQuickUnion')
+    # print()
+    # mc.monte_carlo_percolation_test('QuickFind')
+    # print()
+    # mc.monte_carlo_percolation_test('PathCompression')
+    # print()
 
 #     mc = MonteCarlo(3000, 1)
 
@@ -802,12 +815,12 @@ def main():
 #     print()
 #     mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=42)
 #     print()
-    mc.monte_carlo_full_connection_test('PathCompression', seed_value=4)
-    print()
-    mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=4)
-    print()
-    mc.monte_carlo_full_connection_test('QuickFind', seed_value=42)
-    print()
+#     mc.monte_carlo_full_connection_test('PathCompression', seed_value=4)
+#     print()
+#     mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=4)
+#     print()
+#     mc.monte_carlo_full_connection_test('QuickFind', seed_value=42)
+#     print()
 
 
 # @elapsed_time
