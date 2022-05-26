@@ -97,6 +97,8 @@ class Find:
 
     @size.setter
     def size(self, value):
+        if type(value) is not int:
+            raise ValueError("Only an integer must be passed to the 'size' argument")
         if value <= 0:
             raise ValueError("The size of the network must be greater than zero.")
         self._size = value
@@ -333,39 +335,40 @@ class Board:
         are all closed. The final attribute is an integer, open positions, which tracks the total number of open
         positions on the board at any given time, and increases each time the method open gate returns True.
         """
-        self.size = int(size)  # size validation is done in the Find Class- this will also validate the space property
+        # self.size = int(size)  # size validation is done in the Find Class- this will also validate the space property
         self.find = find
 
         if self._find == 'QuickFind':
-            self.finder = QuickFind(self.size)
+            self.finder = QuickFind(size)
         elif self._find == 'WeightedQuickUnion':
-            self.finder = WeightedQuickUnion(self.size)
+            self.finder = WeightedQuickUnion(size)
         elif self._find == 'PathCompression':
-            self.finder = PathCompression(self.size)
+            self.finder = PathCompression(size)
         else:
-            self.finder = QuickUnion(self.size)
+            self.finder = QuickUnion(size)
 
-        self.space = self.size ** 2  # space is the total number of elements on the board
+        self.size = self.finder.size  # size and space validation run through the Find Class and uses the same values
+        self.space = self.finder.space
         self.board = [0 for _ in range(self.space)]
         self.open_positions = 0
 
     # Validation of properties are done in the Find Class- these properties should not be changed after initialization
-    @property
-    def size(self):
-        return self._size
-
-    @size.setter
-    def size(self, value):
-        self._size = value
-
-    @property
-    def space(self):
-        return self._space
-
-    @space.setter
-    def space(self, value):
-        self._space = value
-
+    # @property
+    # def size(self):
+    #     return self._size
+    #
+    # @size.setter
+    # def size(self, value):
+    #     self._size = value
+    #
+    # @property
+    # def space(self):
+    #     return self._space
+    #
+    # @space.setter
+    # def space(self, value):
+    #     self._space = value
+    #
     @property
     def find(self):
         return self._find
@@ -422,15 +425,6 @@ class Board:
             if self.is_open(right):
                 connector(position, right)
 
-    # def __positions(self, position):
-    #     """Returns the row and column on the 2-D board from the 1-D board position."""
-    #     col = int(position % self.size)
-    #     if col == 0:
-    #         col = self.size
-    #     row = int((position - col + self.size) / self.size)
-    #
-    #     return row, col
-
     def number_of_open_positions(self):
         """Returns the number of open positions or sites on the game board. Returns integer."""
         return self.open_positions
@@ -478,15 +472,10 @@ class Board:
         for i in range(self.space):
             print(f"{i + 1} -> {self.finder.roots[i]}")
 
-    # def show_board_position_and_roots(self):
-    #     for i in range(self.space):
-    #         a, b = self.__positions(i + 1)
-    #         print(f"({a}, {b}) -> {self.finder.roots[i]}")
-
 
 class Visualizer:
     """
-    A Visualizer Object creates a formatted string version of a Board object's current state and displays it. The
+    A Visualizer Object creates a formatted string version of a Board object's current state (list) and displays it. The
     visualizer's create board method will format and display a two-dimensional matrix, showing the difference between
     open, closed, and full positions. There are three modes for the visualizer: Square, Circle, and Matrix mode. Each
     mode represents the members of a network using a different marker (a square, a circle, or 0's and 1's). Grey shows a
@@ -497,7 +486,7 @@ class Visualizer:
     Attributes
     ----------
     board: a board object
-        a Board Object with the Board Object's list attribute that is a list of zeros and ones only
+        a Board Object that takes its board attribute, a list of zeros and ones only, to be formatted for display
     marker: str
         a string representing the type of marker to be used to display the members in the network
 
@@ -509,6 +498,14 @@ class Visualizer:
         Returns str. Takes a Board Object list and formats it as a printable string of the current state of the network
     """
     def __init__(self, board, marker):
+        """
+        Takes a Board object and string to create string that displays the Board object's board list in one of three
+        modes. The mode is dependent on the marker parameter and will default to a square marker. The Visualizer will
+        take the current state of the Board (the board list) and reformat it from a one-dimensional list to a
+        two-dimensional matrix corresponding to rows and columns of N x N (or size X size). The user interface for the
+        Percolate Class, and input into the Board Class is based on a row/column matrix structure, and thus a
+        two-dimensional matrix is what the user is interacting with to open positions in the network.
+        """
         self.board = board
         self.marker = marker
 
@@ -520,19 +517,19 @@ class Visualizer:
 
     def create_board(self):
         """Returns a formatted string of a board list of zeros and ones. Returns string."""
+        if self.marker == 'Matrix':
+            mark = '0.'
+        elif self.marker == 'Circle':
+            mark = '\u25CF'
+        else:  # Default marker is a square- this default will also be set if other string argument is passed
+            mark = '\u25A0'
+
         new_board = ['[[']
         for position, number in enumerate(self.board.board):
             if position == 0:
                 pass
             elif position % self.board.size == 0:
                 new_board.append('\n [')
-
-            if self.marker == 'Matrix':
-                mark = '0.'
-            elif self.marker == 'Circle':
-                mark = '\u25CF'
-            else:  # Default marker is a square- this default will also be set if other string argument is passed
-                mark = '\u25A0'
 
             if self.board.is_full(position + 1):
                 if self.marker == 'Matrix':
@@ -562,14 +559,69 @@ class Visualizer:
 
 
 class Percolate:
+    """
+    The Percolate Class is a model for any network that has the geometry of a two-dimensional N x N directional matrix
+    where an initial empty network allows members to join and connect with each other, and has the property of fullness.
+    Fullness is defined as members who are in the first row of the network, or connected to a member in the first
+    row. Percolation is defined as a path of full members from the top row to the bottom row.
+
+    A Percolate Object requires a Board and Find object in order to completely model the aforementioned network. The
+    Percolate Object's Board Object represents the two-dimensional network in one-dimension that keeps track of new
+    members and the status of members in the network, while the Find Object performs all search and connection
+    functions in the network. The status of positions in the network are open, closed or full. All positions start off
+    closed or empty until selected to join the network. After the position is selected, it is considered to be open and
+    a part of the network. Any position in the matrix adjacent to another position is considered to be connected to that
+    member of the network. Any position connected to a position in the first row is considered to be a full position.
+    The network flows in a downward direction, and new positions will continue to join the network until there is a
+    complete full path from the top row to the bottom row (percolation). The Percolate object auto selects, or allows
+    the user to select, row and column positions one at a time to join the network. Selection will continue until the
+    network has percolated.
+
+    ...
+
+    Attributes
+    ----------
+    size: str
+        a string used to determine the size of the network and create a Board Object
+    auto: bool
+        a boolean argument used to indicate if the selection of positions will be random or be from user input
+    find: str
+        a valid string used to determine the type of kernel for the Find Object in the Board Class
+    speed: str
+        a valid string used to set the speed of the selection of positions in auto mode
+    marker: str
+        a valid string used to set the type of marker to be displayed on the screen for the Visualizer Class
+
+    Methods
+    -------
+    validate_parameters(auto_value, speed_value, marker_value)
+        Returns Tuple (str). Method used to guarantee valid string and boolean arguments were passed to the constructor
+    percolate()
+        Returns None. Main method that randomizes or gets user-inputted selections of positions on the board, adds the
+        position to the network, connects it to any adjacent member through the board class, prints the current state of
+        the board on the screen, and exits once percolation has occurred, displaying the percolation threshold.
+    clear()
+        Returns None. Used to control the visualization of the board by clearing the screen before displaying the board
+    enter_position()
+        Returns Tuple (int). Gets a row and column within the boundaries of the board from the user.
+    instantiate_percolate(cls)
+        Returns Percolate Object. Class method. Gets input from the user to create a valid object for auto or self play.
+    """
     def __init__(self, size=3, auto=True, find='QuickFind', speed='Fast', marker='Square'):
+        """
+        Takes five arguments with default settings in place to initiate a Percolation Object that allows the user to
+        play or watch the network grow until percolation has occurred. The size and find parameters will determine the
+        type of Board and Find Object to be created, and the speed and marker parameters will determine how the output
+        is displayed on the screen. If auto is True, the object will randomly select positions until percolation; other
+        wise, the user will have to input row and columns manually until percolation.
+        """
         self.auto, self.speed, self.marker = self.validate_parameters(auto, speed, marker)
         self.board = Board(size, find)  # find and size arguments are validated in the Board Class
         self.visualizer = Visualizer(self.board, self.marker)
 
     @staticmethod
     def validate_parameters(auto_value, speed_value, marker_value):
-        """Validates auto, speed, and marker parameters for Watch Class object."""
+        """Validates auto, speed, and marker parameters for Percolate Class object. Returns a tuple."""
         if type(auto_value) != bool:
             raise TypeError("Invalid argument was passed to auto parameter.")
         if speed_value not in ('Fast', 'Slow', 'Express', 'Inf'):
@@ -586,10 +638,12 @@ class Percolate:
         total number of open positions to the total number of positions on the board. If the auto parameter is False,
         the positions will be taken from input by the user by row and column.
         """
-        if self.auto:
-            Percolate.clear()
+        Percolate.clear()
+        if not self.auto:
+            print("\n\nLet's play. \nPlease enter a row (A) and column (B) to add a new member to the network. \n"
+                  "\nKeep adding members until the network has percolated.\n")
+            self.visualizer.print_board(self.visualizer.create_board())
 
-        # done = False
         while True:
             if self.auto is True:  # this if/else guarantees valid board position is passed to the board object
                 a = randint(1, self.board.size)
@@ -599,20 +653,20 @@ class Percolate:
 
             if not self.board.open_gate(a, b):  # checks if position has already been played- if so, moves to next input
                 if self.auto is False:          # message below is only displayed in play mode with user input
-                    print(f"\n\nThe numbers {a} and {b} have already been played.")
+                    print(f"\nThe numbers {a} and {b} have already been played.")
                 sleep(0.05)
                 continue
 
             formatted_board = self.visualizer.create_board()  # gets a string representation of the current board state
             if self.auto:
                 Percolate.clear()  # for display purposes in auto mode to prevent screen flashing
-            print('\n')
-            print(f"The new numbers are {a} and {b}.")
+            # print('\n')
+            print(f"\nThe new numbers are {a} and {b}.\n")
             self.visualizer.print_board(formatted_board)  # displays the current board state for desired time
             if self.auto:
                 if self.speed == 'Fast':
                     sleep(0.25)
-                elif self.speed == 'Slow':
+                elif self.speed == 'Slow':  # slow display will allow user time to see inputted row and column values
                     sleep(1)
                 elif self.speed == 'Express':
                     sleep(0.05)
@@ -623,17 +677,13 @@ class Percolate:
 
             if self.board.percolates():
                 threshold = round(self.board.number_of_open_positions() / self.board.space, 4)
-                print(f"The Game is over and percolation occurred at {round(threshold * 100, 2)}%")
+                print(f"A full path has been reached and percolation occurred at {round(threshold * 100, 2)}%")
                 break
-
-            # extra protection to make sure the game quits and for debugging/testing- unnecessary if everything is ok
-            # if self.board.number_of_open_positions() == self.board.space:
-            #     done = True
 
     # define our clear function from GeeksForGeeks
     @staticmethod
     def clear():
-        """Clears the screen for before displaying the new board."""
+        """Clears the screen for before displaying the new board. Returns none."""
         if name == 'posix':
             _ = system('clear')
 
@@ -642,7 +692,7 @@ class Percolate:
         a = b = 0
         while True:
             try:
-                a = int(input("A: "))
+                a = int(input("\nA: "))
                 if not 0 < a <= self.board.size:
                     print(f"Enter a number between one and the size of your board ({self.board.size}).")
                     continue
@@ -659,11 +709,20 @@ class Percolate:
         return a, b
 
     @classmethod
-    def instantiate_game(cls):
-        """Returns a Game Object from input by the user."""
+    def instantiate_percolate(cls):
+        """Creates a Percolate Object from input by the user. Returns a Percolate Object."""
+        print("Welcome to the Network Percolation Simulator. This simulator will display an N x N matrix that \n"
+              "represents a connectable network of row by column positions. Members will be added one position at a \n"
+              "time, and any adjacent members in the network are connected to each other. The network flows from top \n"
+              "to bottom with any member in the first row being full. If other positions are connected to one in the \n"
+              "first row, they are also full. Once a full path from top to bottom has been reached, it is said that \n"
+              "the network has percolated. The user has the option to watch the network in auto mode, or input the \n"
+              "positions manually. Upon the start of the simulation, the user will be asked a series of questions to \n"
+              "start the simulation.\n\nAre you ready?")
         auto = True
         while True:
-            answer = input("\nWould you like to play or watch auto-play? Enter 'Yes' to play or 'No' to watch: ")
+            answer = input("\nWould you like to play or watch auto-play? Enter 'Yes' to play or "
+                           "'No' to watch: \n")
             response = ['yes', 'y', 'no', 'n']
             answer = answer.lower()
             if answer not in response:
@@ -676,11 +735,11 @@ class Percolate:
         size = 3
         while True:
             try:
-                size = int(input("\nEnter a size N, for your N x N game board: "))
+                size = int(input("\nEnter a size N, for your N x N game board: \n"))
                 if size <= 0:
                     print("\nThe size must be greater than zero.")
                     continue
-                if size > 50:
+                elif size > 50:
                     print("\nThe size must be less than fifty.")
                     continue
             except ValueError:
@@ -691,7 +750,7 @@ class Percolate:
         find = 'QuickUnion'
         while True:
             answer = input("\nChoose your find kernel: 'QuickUnion', 'QuickFind', 'WeightedQuickUnion' or "
-                           "'PathCompression', or press 'Enter' for 'QuickUnion': ")
+                           "'PathCompression', or press 'Enter' for 'QuickUnion': \n")
             if len(answer) == 0:
                 break
             response = ['quickunion', 'quickfind', 'weightedquickunion', 'pathcompression']
@@ -711,7 +770,7 @@ class Percolate:
         if auto:
             while True:
                 answer = input("\nChoose your game speed: 'Fast', 'Slow', 'Express', or 'Inf'. 'Fast' is the default.\n"
-                               "It's recommend to pick the speed based on your board size. Press 'Enter' for default: ")
+                               "It's recommend to pick a speed based on the board size. Press 'Enter' for default: \n")
                 if len(answer) == 0:
                     break
                 response = ('fast', 'slow', 'express', 'inf')
@@ -729,7 +788,7 @@ class Percolate:
 
         marker = 'Square'
         while True:
-            answer = input("\nChoose your marker: 'Square', 'Circle', 'Matrix' or press 'Enter' for 'Square: ")
+            answer = input("\nChoose your marker: 'Square', 'Circle', 'Matrix' or press 'Enter' for 'Square: \n")
             if len(answer) == 0:
                 break
             response = ('square', 'circle', 'matrix')
@@ -747,6 +806,7 @@ class Percolate:
 
 
 def elapsed_time(function):
+    """Prints timing of MonteCarlo Class tests using a wrapper function. Returns function."""
     def wrapper(*args, **kwargs):
         start = time()
         function(*args, **kwargs)
@@ -757,12 +817,62 @@ def elapsed_time(function):
 
 
 class MonteCarlo:
+    """
+    MonetCarlo Class is a testing class for the Board Class of an object that represents a network as a two-dimensional
+    N x N matrix. It serves two main purposes: to find the percolation threshold and to time different algorithms that
+    the children of the Find Object use. It takes a size parameter, which is N in the N x N matrix, and an iterations
+    parameter, which determines how many times the monte carlo simulation for testing will occur. When testing
+    percolation, both the total time and percolation threshold will be displayed. In a full connection testing, just
+    the total time will be displayed.
+
+    All test functions are run through the wrapper class function elapsed_time() in order to find the total time taken
+    for the test.
+
+    ...
+
+    Attributes
+    ----------
+    size: int
+        the base measure of the network in one-dimension where the total number of members of the network is size X size
+    iterations: int
+        the number of monte carlo test simulations to be performed in the test methods
+
+    Methods
+    -------
+    positions()
+        Returns a tuple of integers. Private method. Transforms the 1-D position to a 2-D row and column in the matrix.
+    percolation_test_1(find)
+        Returns none. Test for the percolation threshold by taking two random row and column points until percolation
+    monte_carlo_percolation_test(find, randomized, seed_value)
+        Returns none. Test for percolation threshold by taking one random list position until percolation. Allows for
+        reproducibility of results when randomized is False and a seed_value is set. All position points are unique.
+    monte_carlo_full_connection_test(find, send_value)
+        Returns none. Test for percolation threshold by taking one random list position until percolation. Allows for
+        reproducibility of results when seed_value is set. All position points are unique.
+    """
     def __init__(self, size, iterations):
-        self.size = size
+        """
+        Takes two integer parameters to create a Monte Carlo object that allows for three test methods. The first size
+        parameter is for the Board class and initiates the size of the network to be tested. The second iterations
+        parameter determines how many times the monte carlo simulation will occur.
+        """
+        self.size = size  # size is validated in the Find Class
         self.iterations = iterations
 
-    def positions(self, position):
-        """Returns the row and column on the 2-D board from the 1-D board position."""
+    @property
+    def iterations(self):
+        return self._iterations
+
+    @iterations.setter
+    def iterations(self, value):
+        if type(value) is not int:
+            raise ValueError("Only an integer must be passed to the 'iterations' argument")
+        if value <= 0:
+            raise ValueError("The number of iterations must be greater than zero.")
+        self._iterations = value
+
+    def __positions(self, position):
+        """Returns the row and column on the 2-D board from the 1-D board position. Returns two integers."""
         col = int(position % self.size)
         if col == 0:
             col = self.size
@@ -773,9 +883,16 @@ class MonteCarlo:
     # Test Method 1 performs much slower than Method 2 because it uses two randomized points with points repeating
     @elapsed_time
     def percolation_test_1(self, find):
+        """
+        Test Function that takes a 2-Dimensional board of size N x N over I iterations of the board as defined in the
+        class Object and performs repeated tests over randomized sets of inputs of open gates in order to find
+        the percolation threshold averaged out over I. Positions are taken by row and column.
+        """
         percolation_list = []
         for i in range(self.iterations):
             board = Board(self.size, find)
+            # if seed_value is not None:
+            #     seed((i + 1) + seed_value)
             while not board.percolates():
                 a = randint(1, board.size)
                 b = randint(1, board.size)
@@ -792,9 +909,9 @@ class MonteCarlo:
     @elapsed_time
     def monte_carlo_percolation_test(self, find, randomized=True, seed_value=None):
         """
-        Test Function that takes a 2-Dimensional board of size NxN over I iterations of the board as defined in the
+        Test Function that takes a 2-Dimensional board of size N x N over I iterations of the board as defined in the
         class Object and performs repeated tests over randomized sets of inputs of open gates in order to find
-        the percolation threshold averaged out over I.
+        the percolation threshold averaged out over I. Positions are a unique set of points the size of the network.
         """
         if randomized and seed_value is not None:
             raise ValueError("When randomized is set to True, seed_value cannot be set to any value and must be None)."
@@ -806,13 +923,13 @@ class MonteCarlo:
 
         for i in range(self.iterations):
             if not randomized:
-                seed(i + seed_value)
+                seed(i + seed_value)  # the check above will guarantee that seed_value is not None
             else:  # else statement to avoid error warning that seed_value is None-> does not affect randomized tests
                 seed_value = 0
             marks = sample(range(1, space + 1), space)  # a list of random or seeded random values on the 1-D board
             board = Board(self.size, find)
             for position in marks:
-                a, b = self.positions(position)  # takes the 1-D position and transforms it to a row and column position
+                a, b = self.__positions(position)  # takes the 1-D position and transforms it to a row/column position
                 board.open_gate(a, b)
                 if board.percolates():
                     # print(f"The test ended after {board.open_positions} plays.")
@@ -830,91 +947,35 @@ class MonteCarlo:
 
     @elapsed_time
     def monte_carlo_full_connection_test(self, find, seed_value=None):
+        """
+        Test Function that takes a 2-Dimensional board of size N x N over I iterations of the board as defined in the
+        class Object and performs repeated tests over randomized sets of inputs of open gates until the network is open
+        completely. Positions are a unique set of points the size of the network and guarantees the network will be
+        100% open.
+        """
         space = self.size ** 2
 
         for i in range(self.iterations):
             board = Board(self.size, find)
 
-            if seed_value is not None:
+            if seed_value is not None:  # a simpler version of having randomized tests compared to the percolation test
                 seed((i + 1) + seed_value)
 
             positions = sample(range(1, space + 1), space)  # generates a random set of all positions in the network
 
             for position in positions:
-                a, b = self.positions(position)  # get the 2-D position, row and column, on the NxN board
+                a, b = self.__positions(position)  # get the 2-D position, row and column, on the N x N board
                 board.open_gate(a, b)
 
-            board.show_roots()
-            board.show_board_position_and_roots()
+#             board.show_roots()
 
-        print(f"Board Size: {self.size}")
+        print(f"Board Size: {self.size} x {self.size}")
         print(f"Iterations: {self.iterations}")
         print(f"Algorithm: {find}")
 
 
 def main():
-    # Game.instantiate_game().play_game()
-    # exit()
-    #     mc = MonteCarlo(16, 100)
-    # mc.monte_carlo_percolation_test('QuickFind')
-    # print()
-    # mc.test_1('QuickFind')
-    # print()
-    # mc = MonteCarlo(250, 1)
-    # mc.monte_carlo_percolation_test('QuickUnion', randomized=False, seed_value=42)
-    # print()
-    # mc.monte_carlo_percolation_test('WeightedQuickUnion', randomized=False, seed_value=42)
-    # print()
-    # mc.monte_carlo_percolation_test('QuickFind', randomized=False, seed_value=42)
-    # print()
-    # mc.monte_carlo_percolation_test('PathCompression', randomized=False, seed_value=42)
-    # print()
-
-    # mc = MonteCarlo(25, 100)
-    # mc.monte_carlo_percolation_test('WeightedQuickUnion', randomized=False, seed_value=2)
-    # print()
-    # mc.monte_carlo_percolation_test('QuickUnion', randomized=False, seed_value=2)
-    # print()
-    #
-    # mc.monte_carlo_percolation_test('QuickFind')
-    # print()
-    # mc.monte_carlo_percolation_test('PathCompression')
-    # print()
-    # exit()
-
-    mc = MonteCarlo(3, 1)
-    #
-    # mc.monte_carlo_full_connection_test('PathCompression', seed_value=89)
-    # print()
-    # mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=89)
-    # print()
-
-    mc.monte_carlo_full_connection_test('QuickUnion', seed_value=42)
-    print()
-    mc.monte_carlo_full_connection_test('PathCompression', seed_value=42)
-    print()
-    mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=42)
-    print()
-#     mc.monte_carlo_full_connection_test('PathCompression', seed_value=4)
-#     print()
-#     mc.monte_carlo_full_connection_test('WeightedQuickUnion', seed_value=4)
-#     print()
-#     mc.monte_carlo_full_connection_test('QuickFind', seed_value=42)
-#     print()
-
-
-# @elapsed_time
-# def monte_carlo_test_1(size, trials):
-#     mc = MonteCarlo(size, trials)
-#     mc.test_1()
-#
-# @elapsed_time
-# def monte_carlo_test_2(size, trials, randomized, seed_value):
-#     mc = MonteCarlo(size, trials)
-#     mc.test_2(randomized, seed_value)
-
-# monte_carlo_test_1(12, 300)
-# monte_carlo_test_2(12, 5, False, 99)
+    Percolate.instantiate_percolate().percolate()
 
 
 if __name__ == "__main__":
