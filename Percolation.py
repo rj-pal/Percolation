@@ -1,8 +1,8 @@
+from os import system, name
+from functools import wraps
+from time import sleep, time
 from random import randint, sample, seed
 from colorama import Fore, Style
-from os import system, name
-from time import sleep, time
-
 
 class Find:
     """
@@ -352,23 +352,7 @@ class Board:
         self.board = [0 for _ in range(self.space)]
         self.open_positions = 0
 
-    # Validation of properties are done in the Find Class- these properties should not be changed after initialization
-    # @property
-    # def size(self):
-    #     return self._size
-    #
-    # @size.setter
-    # def size(self, value):
-    #     self._size = value
-    #
-    # @property
-    # def space(self):
-    #     return self._space
-    #
-    # @space.setter
-    # def space(self, value):
-    #     self._space = value
-    #
+    
     @property
     def find(self):
         return self._find
@@ -805,13 +789,19 @@ class Percolate:
         return Percolate(size, auto, find, speed, marker)
 
 
+    
 def elapsed_time(function):
     """Prints timing of MonteCarlo Class tests using a wrapper function. Returns function."""
+    @wraps(function)
     def wrapper(*args, **kwargs):
+        """Returns a tuple: the test function return and the total time taken by the test """
         start = time()
-        function(*args, **kwargs)
+        average = function(*args, **kwargs)
         end = time()
-        print(f"{function.__name__}: Elapsed time of {(end - start)} s")
+        total_time = (end - start)
+        print(f"{function.__name__}: Elapsed time of {(total_time)} s")
+        
+        return average, total_time
 
     return wrapper
 
@@ -907,7 +897,7 @@ class MonteCarlo:
 
     # Test Method 2 is quite a bit faster than Test Method 1-> Renamed to monte_carlo_percolation_test
     @elapsed_time
-    def monte_carlo_percolation_test(self, find, randomized=True, seed_value=None):
+    def monte_carlo_percolation_test(self, find, randomized=True, seed_value=None, show_results=True):
         """
         Test Function that takes a 2-Dimensional board of size N x N over I iterations of the board as defined in the
         class Object and performs repeated tests over randomized sets of inputs of open gates in order to find
@@ -935,18 +925,19 @@ class MonteCarlo:
                     # print(f"The test ended after {board.open_positions} plays.")
                     break
             percolation_list.append(round(board.open_positions / board.space, 4))
-            # board.show_roots()
-            # v = Visualizer(board, "Circle")
-            # v.print_board(v.create_board())
-
+            
         average = sum(percolation_list) / len(percolation_list) * 100
-        print(f"Percolation Threshold Average: {(round(average, 4))}%")
-        print(f"Board Size: {self.size}")
-        print(f"Iterations: {self.iterations}")
-        print(f"Algorithm: {find}")
+        average = (round(average, 4))
+        if show_results:
+            print(f"Percolation Threshold Average: {average}%")
+            print(f"Board Size: {self.size}")
+            print(f"Iterations: {self.iterations}")
+            print(f"Algorithm: {find}")
+            
+        return average
 
     @elapsed_time
-    def monte_carlo_full_connection_test(self, find, seed_value=None):
+    def monte_carlo_full_connection_test(self, find, seed_value=None, show_results=True):
         """
         Test Function that takes a 2-Dimensional board of size N x N over I iterations of the board as defined in the
         class Object and performs repeated tests over randomized sets of inputs of open gates until the network is open
@@ -957,8 +948,10 @@ class MonteCarlo:
 
         for i in range(self.iterations):
             board = Board(self.size, find)
-
+            
             if seed_value is not None:  # a simpler version of having randomized tests compared to the percolation test
+                if type(seed_value) is not int: # validate the seed_value parameter
+                    raise ValueError("Only an integer must be passed to the 'seed_value' argument")
                 seed((i + 1) + seed_value)
 
             positions = sample(range(1, space + 1), space)  # generates a random set of all positions in the network
@@ -967,11 +960,10 @@ class MonteCarlo:
                 a, b = self.__positions(position)  # get the 2-D position, row and column, on the N x N board
                 board.open_gate(a, b)
 
-#             board.show_roots()
-
-        print(f"Board Size: {self.size} x {self.size}")
-        print(f"Iterations: {self.iterations}")
-        print(f"Algorithm: {find}")
+        if show_results:
+            print(f"Board Size: {self.size} x {self.size}")
+            print(f"Iterations: {self.iterations}")
+            print(f"Algorithm: {find}")
 
 
 def main():
